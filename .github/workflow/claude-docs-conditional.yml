@@ -1,0 +1,75 @@
+# .github/workflows/claude-docs-conditional.yml
+name: Claude Docs Update (Conditional)
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  check-docs-needed:
+    runs-on: ubuntu-latest
+    outputs:
+      needs_update: ${{ steps.check.outputs.needs_update }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check if docs update needed
+        id: check
+        run: |
+          # docsだけの変更ならスキップ
+          CHANGED=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -v '^docs/' | grep -v '\.md$' | wc -l)
+          if [ "$CHANGED" -gt 0 ]; then
+            echo "needs_update=true" >> $GITHUB_OUTPUT
+          else
+            echo "needs_update=false" >> $GITHUB_OUTPUT
+          fi
+
+  update-docs:
+    needs: check-docs-needed
+    if: needs.check-docs-needed.outputs.needs_update == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get diff summary
+        id: diff
+        run: |
+          git diff origin/${{ github.base_ref }}...HEAD --stat > /tmp/diff-stat.txt
+          echo "summary<<EOF" >> $GITHUB_OUTPUT
+          cat /tmp/diff-stat.txt >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Update docs with Claude
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            ## タスク: ドキュメント自動更新
+
+            このPRのソースコード変更に基づいて、docsディレクトリ内のドキュメントを更新してください。
+
+            ### 変更概要
+```
+            ${{ steps.diff.outputs.summary }}
+```
+
+            ### 手順
+            1. git diff でソースコードの実際の変更内容を確認
+            2. docs/ 内の関連ドキュメントを読み込み
+            3. 変更に対応するドキュメント更新を行う
+            4. 変更がなければ何もしない（不要な変更を避ける）
+
+            ### 更新対象の判断基準
+            - 関数/メソッドのシグネチャ変更 → APIリファレンス更新
+            - 新規機能追加 → 使用例を追加
+            - 設定オプション変更 → 設定ガイド更新
+            - 依存関係変更 → インストールガイド更新
+          claude_args: --max-turns 20 --model claude-sonnet-4-5-20250929
