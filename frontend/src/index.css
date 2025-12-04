@@ -8,11 +8,8 @@
   font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   line-height: 1.6;
   font-weight: 400;
-
   color-scheme: light dark;
   color: #1f2937;
-  background: linear-gradient(135deg, #f5f7fa 0%, #e4e8eb 50%, #f5f7fa 100%);
-
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -26,11 +23,60 @@ body {
   display: flex;
   justify-content: center;
   padding: 2rem 1rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+  background-size: 400% 400%;
+  animation: gradientShift 15s ease infinite;
+  position: relative;
+  overflow-x: hidden;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background:
+    radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.3) 0%, transparent 50%),
+    radial-gradient(circle at 40% 40%, rgba(120, 200, 255, 0.2) 0%, transparent 40%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
 #root {
   width: 100%;
   max-width: 700px;
+  position: relative;
+  z-index: 1;
+}
+
+/* Floating orbs */
+body::after {
+  content: '';
+  position: fixed;
+  width: 300px;
+  height: 300px;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+  border-radius: 50%;
+  top: -100px;
+  right: -100px;
+  animation: float 20s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes float {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  25% { transform: translate(-30px, 30px) rotate(5deg); }
+  50% { transform: translate(0, 60px) rotate(0deg); }
+  75% { transform: translate(30px, 30px) rotate(-5deg); }
 }
 
 /* Scrollbar styling */
@@ -40,52 +86,59 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  background: rgba(255, 255, 255, 0.1);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
+  background: rgba(255, 255, 255, 0.3);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #a1a1a1;
+  background: rgba(255, 255, 255, 0.5);
 }
 
 /* Selection styling */
 ::selection {
-  background: rgba(102, 126, 234, 0.3);
+  background: rgba(255, 255, 255, 0.3);
   color: inherit;
 }
 
 /* Focus visible for accessibility */
 :focus-visible {
-  outline: 2px solid #667eea;
+  outline: 2px solid rgba(255, 255, 255, 0.8);
   outline-offset: 2px;
 }
 
 /* Dark mode */
 @media (prefers-color-scheme: dark) {
-  :root {
-    color: #f3f4f6;
-    background: linear-gradient(135deg, #111827 0%, #1f2937 50%, #111827 100%);
+  body {
+    background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+    background-size: 400% 400%;
+  }
+
+  body::before {
+    background:
+      radial-gradient(circle at 20% 80%, rgba(139, 92, 246, 0.2) 0%, transparent 50%),
+      radial-gradient(circle at 80% 20%, rgba(236, 72, 153, 0.2) 0%, transparent 50%),
+      radial-gradient(circle at 40% 40%, rgba(59, 130, 246, 0.15) 0%, transparent 40%);
   }
 
   ::-webkit-scrollbar-track {
-    background: #1f2937;
+    background: rgba(0, 0, 0, 0.2);
   }
 
   ::-webkit-scrollbar-thumb {
-    background: #4b5563;
+    background: rgba(255, 255, 255, 0.2);
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: #6b7280;
+    background: rgba(255, 255, 255, 0.3);
   }
 
   ::selection {
-    background: rgba(167, 139, 250, 0.3);
+    background: rgba(139, 92, 246, 0.5);
   }
 
   :focus-visible {
@@ -94,10 +147,10 @@ body {
 }
 
 /* Animation for page load */
-@keyframes fadeIn {
+@keyframes fadeInUp {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(30px);
   }
   to {
     opacity: 1;
@@ -106,5 +159,5 @@ body {
 }
 
 #root {
-  animation: fadeIn 0.5s ease-out;
+  animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1);
 }
