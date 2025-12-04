@@ -70,4 +70,5 @@ jobs:
             - 新規機能追加 → 使用例を追加
             - 設定オプション変更 → 設定ガイド更新
             - 依存関係変更 → インストールガイド更新
+            Bashツールで `git commit` を使用して、ドキュメントを更新してください。
           claude_args: --max-turns 20 --model claude-sonnet-4-5-20250929
