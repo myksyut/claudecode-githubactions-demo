@@ -1,74 +1,62 @@
-# .github/workflows/claude-docs-conditional.yml
-name: Claude Docs Update (Conditional)
+name: Claude Docs Auto-Update
 
 on:
   pull_request:
     types: [opened, synchronize]
+    # docsのみの変更は除外（オプション）
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
 
 jobs:
-  check-docs-needed:
-    runs-on: ubuntu-latest
-    outputs:
-      needs_update: ${{ steps.check.outputs.needs_update }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Check if docs update needed
-        id: check
-        run: |
-          # docsだけの変更ならスキップ
-          CHANGED=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -v '^docs/' | grep -v '\.md$' | wc -l)
-          if [ "$CHANGED" -gt 0 ]; then
-            echo "needs_update=true" >> $GITHUB_OUTPUT
-          else
-            echo "needs_update=false" >> $GITHUB_OUTPUT
-          fi
-
-  update-docs:
-    needs: check-docs-needed
-    if: needs.check-docs-needed.outputs.needs_update == 'true'
+  claude-docs-update:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
-      pull-requests: write
-      issues: write
+      contents: write        # ← write に変更（コミット用）
+      pull-requests: write   # ← write に変更（PR更新用）
+      issues: read
+      id-token: write
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 0      # ← 変更差分を取得するため0に
+          ref: ${{ github.head_ref }}  # PRのブランチをチェックアウト
 
-      - name: Get diff summary
-        id: diff
-        run: |
-          git diff origin/${{ github.base_ref }}...HEAD --stat > /tmp/diff-stat.txt
-          echo "summary<<EOF" >> $GITHUB_OUTPUT
-          cat /tmp/diff-stat.txt >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-
-      - name: Update docs with Claude
+      - name: Run Claude Docs Update
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number }}
+            PR BRANCH: ${{ github.head_ref }}
+
             ## タスク: ドキュメント自動更新
 
-            このPRのソースコード変更に基づいて、docsディレクトリ内のドキュメントを更新してください。
-
-            ### 変更概要
-            ${{ steps.diff.outputs.summary }}
+            このPRのソースコード変更に基づいて、リポジトリ内のドキュメントを更新してください。
 
             ### 手順
-            1. git diff でソースコードの実際の変更内容を確認
-            2. docs/ 内の関連ドキュメントを読み込み
-            3. 変更に対応するドキュメント更新を行う
-            4. 変更がなければ何もしない（不要な変更を避ける）
+            1. `gh pr diff ${{ github.event.pull_request.number }}` でPRの変更内容を確認
+            2. 変更されたソースコードを分析し、ドキュメントへの影響を判断
+            3. docs/ ディレクトリ内の関連するドキュメントを特定して更新
+            4. 必要に応じてREADME.mdも更新
+            5. 変更がある場合のみ、git add → git commit → git push
 
-            ### 更新対象の判断基準
-            - 関数/メソッドのシグネチャ変更 → APIリファレンス更新
-            - 新規機能追加 → 使用例を追加
+            ### 更新判断の基準
+            - 関数/メソッドのシグネチャ変更 → APIドキュメント更新
+            - 新機能追加 → 使用例・説明を追加
             - 設定オプション変更 → 設定ガイド更新
-            - 依存関係変更 → インストールガイド更新
-            Bashツールで `git commit` を使用して、ドキュメントを更新してください。
-          claude_args: --max-turns 20 --model claude-sonnet-4-5-20250929
+            - 破壊的変更 → CHANGELOG.mdに記載
+
+            ### 重要
+            - ドキュメントに影響がない変更の場合は、何もせずに終了
+            - コミットメッセージは「docs: [変更内容の要約]」の形式で
+            - 日本語でドキュメントを記述
+
+            Bashツールで以下のコマンドを使用できます：
+            - `gh pr diff` でPRの差分確認
+            - `git add`, `git commit`, `git push` で変更をコミット
+
+          claude_args: '--allowed-tools "Bash(gh pr diff:*),Bash(gh pr view:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git status:*),Bash(cat:*),Bash(ls:*),View,Edit"'
